@@ -203,12 +203,11 @@ function updateAllCategories() {
     calculateAll();
 }
 
-// ฟังก์ชันวิเคราะห์ชื่อสินค้าเพื่อเลือกหมวดหมู่ให้ตรงอัตโนมัติ
+// ฟังก์ชันวิเคราะห์ชื่อสินค้าเพื่อเลือกหมวดหมู่ให้อัตโนมัติ
 function autoSelectCategory(productName, categorySelect) {
     const name = productName.toUpperCase();
     let matchedCategory = "";
 
-    // กำหนด Keywords หลักสำหรับช่วยคัดกรองแยกหมวดหมู่
     if (name.includes("CORE I") || name.includes("RYZEN") || name.includes("AMD AM") || name.includes("ซีพียู") || name.includes("CPU")) {
         matchedCategory = "CPU";
     } else if (name.includes("MAINBOARD") || name.includes("เมนบอร์ด") || name.includes("B650") || name.includes("B760") || name.includes("H610") || name.includes("A620") || name.includes("Z790") || name.includes("X670")) {
@@ -241,7 +240,6 @@ function autoSelectCategory(productName, categorySelect) {
         matchedCategory = "COMPUTER SET"; 
     }
 
-    // เจาะจงหาแบบละเอียดเพิ่มเติม หากคำเป๊ะๆ แมตช์กับหัวข้อ option ตรงๆ
     if (!matchedCategory) {
         for (let option of categorySelect.options) {
             if (name.includes(option.value.toUpperCase())) {
@@ -251,11 +249,9 @@ function autoSelectCategory(productName, categorySelect) {
         }
     }
 
-    // บังคับเปลี่ยนค่าหมวดหมู่ใน select ของแถวนั้น
     if (matchedCategory && Array.from(categorySelect.options).some(o => o.value === matchedCategory)) {
         categorySelect.value = matchedCategory;
     } else {
-        // Fallback พื้นฐานถ้าแยกประเภทไม่ได้
         if (Array.from(categorySelect.options).some(o => o.value === "COMPUTER SET")) {
             categorySelect.value = "COMPUTER SET";
         }
@@ -287,7 +283,7 @@ function addItem() {
         }
         
         dropdown.classList.remove('hidden');
-        dropdown.innerHTML = '<li class="ac-loading"><span class="spinner"></span> กำลังค้นหาข้อมูลสินค้า...</li>';
+        dropdown.innerHTML = '<li class="ac-loading"><span class="spinner"></span> กำลังค้นหาข้อมูลจากหน้าร้านออนไลน์...</li>';
         
         debounceTimer = setTimeout(() => {
             searchIhavecpu(query, dropdown, nameInput, priceInput);
@@ -312,7 +308,7 @@ function addItem() {
     calculateAll();
 }
 
-// Mock Database of Products
+// Mock Database (ใช้เฉพาะเวลา Backend มีปัญหาเบื้องต้น)
 const localProducts = [
     { name: "CPU (ซีพียู) INTEL 1700 CORE I5-12400F 2.5GHz 6C 12T (TRAY) (3Y)", price: 4390, image: "https://ihavecpu.com/images/product/20230222045610-8547.jpg" },
     { name: "CPU (ซีพียู) INTEL 1700 CORE I5-13400F 2.5GHz 10C 16T", price: 6290, image: "https://ihavecpu.com/images/product/20230104051056-1188.jpg" },
@@ -323,98 +319,22 @@ const localProducts = [
     { name: "SSD (เอสเอสดี) M.2 PCIE 4.0 WD BLACK SN850X 1TB", price: 3690, image: "https://ihavecpu.com/images/product/20220811050720-4355.jpg" }
 ];
 
-// Enhanced Function to fetch and parse ihavecpu search results
+// ดึงข้อมูลผ่าน Python Backend Proxy
 async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
     try {
         const q = query.toLowerCase();
-        const targetUrl = `https://ihavecpu.com/category?search=${encodeURIComponent(query)}`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+        const targetUrl = `http://127.0.0.1:5000/api/search?query=${encodeURIComponent(query)}`;
         
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error('Network error');
+        const response = await fetch(targetUrl);
+        if (!response.ok) throw new Error('Backend Server Error');
         
-        const data = await response.json();
-        const htmlString = data.contents;
+        const products = await response.json();
+        if (products.error || products.length === 0) throw new Error('No products online');
         
-        if (!htmlString || htmlString.includes('Cloudflare') || htmlString.includes('Attention Required')) {
-            throw new Error('Cloudflare Blocked');
-        }
-        
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlString, 'text/html');
-        let products = [];
-        
-        const links = Array.from(doc.querySelectorAll('a')).filter(a => {
-            const text = a.textContent.toLowerCase();
-            return text.includes(q) && text.length > 10 && text.length < 150;
-        });
-        
-        const seenNames = new Set();
-        
-        links.forEach(link => {
-            const name = link.textContent.trim().replace(/\s+/g, ' ');
-            if (seenNames.has(name) || name.length < 5) return;
-            
-            let current = link;
-            let priceText = '';
-            let productCard = link;
-            
-            for (let i = 0; i < 6; i++) {
-                if (current.parentElement) {
-                    current = current.parentElement;
-                    const containerText = current.textContent;
-                    const priceMatch = containerText.match(/(?:฿|THB)\s*([\d,]+)/i) || containerText.match(/([\d,]{3,})\s*(?:.-|บาท)/);
-                    if (priceMatch) {
-                        priceText = priceMatch[1].replace(/,/g, '');
-                        productCard = current;
-                        break;
-                    }
-                }
-            }
-            
-            // --- FIXING PREVIEW IMAGE / LAZY LOADING LOGIC ---
-            let imgUrl = 'https://via.placeholder.com/40?text=No+Img';
-            const img = productCard.querySelector('img') || link.querySelector('img');
-            
-            if (img) {
-                const possibleSrc = img.getAttribute('data-src') || 
-                                    img.getAttribute('data-original') || 
-                                    img.getAttribute('lazy-src') || 
-                                    img.getAttribute('data-srcset') ||
-                                    img.getAttribute('src');
-                                    
-                if (possibleSrc) {
-                    const isBlank = possibleSrc.includes('blank.gif') || 
-                                    possibleSrc.includes('loading') || 
-                                    possibleSrc.startsWith('data:image/svg+xml') ||
-                                    possibleSrc.startsWith('data:image/gif');
-                                    
-                    if (!isBlank) {
-                        if (possibleSrc.startsWith('http')) {
-                            imgUrl = possibleSrc;
-                        } else if (possibleSrc.startsWith('//')) {
-                            imgUrl = 'https:' + possibleSrc;
-                        } else if (possibleSrc.startsWith('/')) {
-                            imgUrl = 'https://ihavecpu.com' + possibleSrc;
-                        } else {
-                            imgUrl = 'https://ihavecpu.com/' + possibleSrc;
-                        }
-                    }
-                }
-            }
-            
-            const priceVal = parseFloat(priceText);
-            if (!isNaN(priceVal) && priceVal > 0) {
-                products.push({ name: name, price: priceVal, image: imgUrl });
-                seenNames.add(name);
-            }
-        });
-        
-        if (products.length === 0) throw new Error('No products found');
         renderResults(products, q, dropdown, nameInput, priceInput, false);
         
     } catch (error) {
-        console.warn('Live fetch failed, using local mock/smart fallback:', error.message);
+        console.warn('Backend fetch failed, using smart local match:', error.message);
         
         const mockResults = localProducts.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
         if (mockResults.length > 0) {
@@ -446,7 +366,7 @@ function renderResults(products, query, dropdown, nameInput, priceInput, isFallb
     
     let html = '';
     if (isFallback) {
-        html += `<li class="ac-notice-banner">⚠️ โหมดออฟไลน์ (แสดงสินค้าแนะนำชั่วคราว)</li>`;
+        html += `<li class="ac-notice-banner">⚠️ โหมดสำรอง (แสดงรายการแนะนำเบื้องต้น)</li>`;
     }
     
     results.forEach((item) => {
@@ -469,7 +389,6 @@ function renderResults(products, query, dropdown, nameInput, priceInput, isFallb
             nameInput.value = chosenName;
             priceInput.value = item.getAttribute('data-price');
             
-            // ค้นหาแถวสิ้นค้าเพื่อดึง Select หมวดหมู่มาทำการ Map อัตโนมัติ
             const row = nameInput.closest('.item-row');
             if (row) {
                 const categorySelect = row.querySelector('.item-category');
