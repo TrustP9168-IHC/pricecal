@@ -58,7 +58,10 @@
             <div class="item-inputs">
                 <div class="input-group">
                     <label>ชื่อสินค้า</label>
-                    <input type="text" class="item-name" placeholder="เช่น การ์ดจอ RTX 4090">
+                    <div class="autocomplete-wrapper" style="position: relative;">
+                        <input type="text" class="item-name" placeholder="พิมพ์ชื่อสินค้าเพื่อค้นหาจาก ihavecpu...">
+                        <ul class="autocomplete-dropdown hidden"></ul>
+                    </div>
                 </div>
                 <div class="input-group">
                     <label>หมวดหมู่ (อิงตามแพลตฟอร์ม)</label>

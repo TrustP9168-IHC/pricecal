@@ -1,17 +1,17 @@
 :root {
-    --bg-color: #0f172a;
-    --card-bg: rgba(30, 41, 59, 0.7);
+    --bg-color: #000000;
+    --card-bg: rgba(20, 20, 20, 0.7);
     --card-border: rgba(255, 255, 255, 0.1);
     --text-primary: #f8fafc;
     --text-secondary: #cbd5e1;
-    --primary-color: #3b82f6;
-    --primary-hover: #2563eb;
-    --accent-color: #8b5cf6;
+    --primary-color: #ef4444;
+    --primary-hover: #dc2626;
+    --accent-color: #ef4444;
     --danger-color: #ef4444;
     --danger-hover: #dc2626;
-    --input-bg: rgba(15, 23, 42, 0.6);
+    --input-bg: rgba(20, 20, 20, 0.6);
     --input-border: rgba(255, 255, 255, 0.2);
-    --input-focus: #3b82f6;
+    --input-focus: #ef4444;
     
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --font-thai: 'Prompt', var(--font-sans);
@@ -25,10 +25,7 @@
 
 body {
     background-color: var(--bg-color);
-    background-image: 
-        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
-    background-attachment: fixed;
+    background-image: none; /* Removed gradients for solid black */
     color: var(--text-primary);
     font-family: var(--font-thai);
     line-height: 1.6;
@@ -50,7 +47,7 @@ header h1 {
     font-family: var(--font-sans);
     font-size: 2.5rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #60a5fa, #c084fc);
+    background: linear-gradient(135deg, #ef4444, #f87171);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 0.5rem;
@@ -166,13 +163,13 @@ select option {
 .btn-primary {
     background: var(--primary-color);
     color: white;
-    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3), 0 2px 4px -1px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3), 0 2px 4px -1px rgba(239, 68, 68, 0.2);
 }
 
 .btn-primary:hover {
     background: var(--primary-hover);
     transform: translateY(-1px);
-    box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4), 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 6px 8px -1px rgba(239, 68, 68, 0.4), 0 4px 6px -1px rgba(239, 68, 68, 0.2);
 }
 
 .btn-primary:active {
@@ -304,4 +301,86 @@ select option {
 .toast.show {
     transform: translateX(-50%) translateY(0);
     opacity: 1;
+}
+
+/* Autocomplete Dropdown */
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    margin-top: 0.5rem;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 50;
+    list-style: none;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.autocomplete-dropdown.hidden {
+    display: none;
+}
+
+.autocomplete-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: background 0.2s;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+.ac-image {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    background: white;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.ac-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-grow: 1;
+}
+
+.ac-name {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ac-price {
+    font-weight: 600;
+    color: #10b981;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.ac-loading, .ac-error {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.ac-error {
+    color: var(--danger-color);
 }

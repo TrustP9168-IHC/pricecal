@@ -222,18 +222,241 @@ function addItem() {
     const select = row.querySelector('.item-category');
     select.innerHTML = getCategoryOptions(platformSelect.value);
     
+    // Autocomplete Setup
+    const nameInput = row.querySelector('.item-name');
+    const priceInput = row.querySelector('.item-price');
+    const dropdown = row.querySelector('.autocomplete-dropdown');
+    
+    let debounceTimer;
+    
+    nameInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        calculateAll();
+        
+        clearTimeout(debounceTimer);
+        
+        if (query.length < 2) {
+            dropdown.classList.add('hidden');
+            return;
+        }
+        
+        dropdown.classList.remove('hidden');
+        dropdown.innerHTML = '<li class="ac-loading">กำลังค้นหาจาก ihavecpu...</li>';
+        
+        debounceTimer = setTimeout(() => {
+            searchIhavecpu(query, dropdown, nameInput, priceInput);
+        }, 800); // 800ms debounce
+    });
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!nameInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+    
     // Event listeners
     row.querySelector('.btn-remove').addEventListener('click', () => {
         row.remove();
         calculateAll();
     });
     
-    row.querySelector('.item-price').addEventListener('input', calculateAll);
+    priceInput.addEventListener('input', calculateAll);
     row.querySelector('.item-category').addEventListener('change', calculateAll);
-    row.querySelector('.item-name').addEventListener('input', calculateAll);
     
     itemsContainer.appendChild(row);
     calculateAll();
+}
+
+// Mock Database of Products (simulating ihavecpu)
+const localProducts = [
+    {
+        name: "CPU (ซีพียู) INTEL 1700 CORE I5-12400F 2.5GHz 6C 12T (TRAY) (3Y)",
+        price: 4390,
+        image: "https://ihavecpu.com/images/product/20230222045610-8547.jpg" 
+    },
+    {
+        name: "CPU (ซีพียู) INTEL 1700 CORE I5-13400F 2.5GHz 10C 16T",
+        price: 6290,
+        image: "https://ihavecpu.com/images/product/20230104051056-1188.jpg"
+    },
+    {
+        name: "VGA (การ์ดจอ) ASUS DUAL GEFORCE RTX 4060 TI OC EDITION - 8GB GDDR6",
+        price: 15990,
+        image: "https://ihavecpu.com/images/product/20230524040947-8149.jpg"
+    },
+    {
+        name: "VGA (การ์ดจอ) GIGABYTE GEFORCE RTX 4070 SUPER WINDFORCE OC - 12GB GDDR6X",
+        price: 25490,
+        image: "https://ihavecpu.com/images/product/20240117064919-4704.jpg"
+    },
+    {
+        name: "MAINBOARD (เมนบอร์ด) 1700 ASUS PRIME H610M-K D4",
+        price: 2490,
+        image: "https://ihavecpu.com/images/product/20220106064030-5883.jpg"
+    },
+    {
+        name: "RAM (แรมพีซี) DDR4/3200 CORSAIR VENGEANCE LPX (16GBx2)",
+        price: 2590,
+        image: "https://ihavecpu.com/images/product/20210928014555-4654.jpg"
+    },
+    {
+        name: "SSD (เอสเอสดี) M.2 PCIE 4.0 WD BLACK SN850X 1TB",
+        price: 3690,
+        image: "https://ihavecpu.com/images/product/20220811050720-4355.jpg"
+    }
+];
+
+// Function to fetch and parse ihavecpu search results via proxy
+async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
+    try {
+        const q = query.toLowerCase();
+        
+        // We use corsproxy to attempt fetching real data
+        const targetUrl = `https://ihavecpu.com/category?search=${encodeURIComponent(query)}`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+        
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error('Network error');
+        
+        const data = await response.json();
+        const htmlString = data.contents;
+        
+        if (!htmlString || htmlString.includes('Cloudflare') || htmlString.includes('Attention Required')) {
+            throw new Error('Cloudflare Blocked');
+        }
+        
+        // Parse HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlString, 'text/html');
+        
+        let products = [];
+        
+        // Generic Scraping Heuristic for ihavecpu or similar sites
+        // Looking for anchor tags that might be products
+        const links = Array.from(doc.querySelectorAll('a')).filter(a => {
+            const text = a.textContent.toLowerCase();
+            return text.includes(q) && text.length > 10 && text.length < 150;
+        });
+        
+        const seenNames = new Set();
+        
+        links.forEach(link => {
+            const name = link.textContent.trim().replace(/\s+/g, ' ');
+            if (seenNames.has(name)) return;
+            
+            // Try to find price nearby
+            let priceText = '';
+            let current = link;
+            // Search parents for a container that might hold the price
+            for (let i = 0; i < 4; i++) {
+                if (current.parentElement) {
+                    current = current.parentElement;
+                    const containerText = current.textContent;
+                    // Look for ฿ or numbers with commas
+                    const priceMatch = containerText.match(/(?:฿|THB)\s*([\d,]+)/i) || containerText.match(/([\d,]{3,})\s*(?:.-|บาท)/);
+                    if (priceMatch) {
+                        priceText = priceMatch[1].replace(/,/g, '');
+                        break;
+                    }
+                }
+            }
+            
+            // Try to find image
+            let imgUrl = 'https://via.placeholder.com/40';
+            const img = current.querySelector('img');
+            if (img && img.src) {
+                imgUrl = img.src;
+            }
+            
+            const priceVal = parseFloat(priceText);
+            if (!isNaN(priceVal) && priceVal > 0) {
+                products.push({
+                    name: name,
+                    price: priceVal,
+                    image: imgUrl
+                });
+                seenNames.add(name);
+            }
+        });
+        
+        if (products.length === 0) {
+            throw new Error('No products found or DOM structure blocked');
+        }
+        
+        renderResults(products, q, dropdown, nameInput, priceInput);
+        
+    } catch (error) {
+        console.warn('Live fetch failed, falling back to local mock:', error.message);
+        
+        // Fallback to local mock data if blocked
+        const mockResults = localProducts.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
+        if (mockResults.length > 0) {
+            renderResults(mockResults, query.toLowerCase(), dropdown, nameInput, priceInput);
+        } else {
+            dropdown.innerHTML = `<li class="ac-error">ดึงข้อมูลจริงไม่ได้ (ติดบล็อก) และไม่พบในฐานข้อมูลจำลอง</li>`;
+        }
+    }
+}
+
+function renderResults(products, query, dropdown, nameInput, priceInput) {
+    // Scoring and Sorting logic
+    // 1. Exact match / Starts with = highest score
+    // 2. Includes query closely = medium score
+    // 3. Alphabetical tie-breaker
+    products.forEach(p => {
+        const nameLower = p.name.toLowerCase();
+        let score = 0;
+        
+        if (nameLower === query) score += 100;
+        else if (nameLower.startsWith(query)) score += 50;
+        else if (nameLower.includes(query)) score += 10;
+        
+        // Bonus for length similarity (closer length = better match)
+        const lengthDiff = Math.abs(nameLower.length - query.length);
+        score -= (lengthDiff * 0.1); 
+        
+        p.score = score;
+    });
+    
+    // Sort by score (desc), then alphabetically
+    products.sort((a, b) => {
+        if (b.score !== a.score) {
+            return b.score - a.score;
+        }
+        return a.name.localeCompare(b.name, 'th');
+    });
+    
+    // Take top 10 results max
+    const results = products.slice(0, 10);
+    
+    let html = '';
+    results.forEach((item) => {
+        html += `
+            <li class="autocomplete-item mock-item" data-price="${item.price}" data-name="${item.name}">
+                <img src="${item.image}" alt="preview" class="ac-image" onerror="this.src='https://via.placeholder.com/40'">
+                <div class="ac-info">
+                    <span class="ac-name">${item.name}</span>
+                    <span class="ac-price">฿${item.price.toLocaleString('th-TH')}</span>
+                </div>
+            </li>
+        `;
+    });
+    
+    dropdown.innerHTML = html;
+    
+    dropdown.querySelectorAll('.mock-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const name = item.getAttribute('data-name');
+            const price = item.getAttribute('data-price');
+            
+            nameInput.value = name;
+            priceInput.value = price;
+            dropdown.classList.add('hidden');
+            
+            calculateAll();
+        });
+    });
 }
 
 // Calculate prices and update summary
