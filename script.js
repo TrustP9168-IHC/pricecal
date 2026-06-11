@@ -167,14 +167,21 @@ const summaryBox = document.getElementById('summaryBox');
 const summaryContent = document.getElementById('summaryContent');
 const toast = document.getElementById('toast');
 
-// Parse percentage string
+// Parse percentage string (e.g., "12.84% + 199" -> { percent: 12.84, fixed: 199 })
 function parseFeeString(str) {
     let percent = 0;
     let fixed = 0;
+    
     if (!str) return { percent, fixed };
+    
     const parts = str.split('+');
-    if (parts.length > 0) percent = parseFloat(parts[0].replace('%', '').trim()) || 0;
-    if (parts.length > 1) fixed = parseFloat(parts[1].trim()) || 0;
+    if (parts.length > 0) {
+        percent = parseFloat(parts[0].replace('%', '').trim()) || 0;
+    }
+    if (parts.length > 1) {
+        fixed = parseFloat(parts[1].trim()) || 0;
+    }
+    
     return { percent, fixed };
 }
 
@@ -192,14 +199,17 @@ function getCategoryOptions(platform) {
 function updateAllCategories() {
     const platform = platformSelect.value;
     const optionsHTML = getCategoryOptions(platform);
+    
     const selects = itemsContainer.querySelectorAll('.item-category');
     selects.forEach(select => {
         const prevValue = select.value;
         select.innerHTML = optionsHTML;
+        // Try to keep previous selection if it exists in new platform
         if (Array.from(select.options).some(opt => opt.value === prevValue)) {
             select.value = prevValue;
         }
     });
+    
     calculateAll();
 }
 
@@ -208,9 +218,11 @@ function addItem() {
     const clone = itemRowTemplate.content.cloneNode(true);
     const row = clone.querySelector('.item-row');
     
+    // Set up category dropdown
     const select = row.querySelector('.item-category');
     select.innerHTML = getCategoryOptions(platformSelect.value);
     
+    // Autocomplete Setup
     const nameInput = row.querySelector('.item-name');
     const priceInput = row.querySelector('.item-price');
     const dropdown = row.querySelector('.autocomplete-dropdown');
@@ -220,6 +232,7 @@ function addItem() {
     nameInput.addEventListener('input', (e) => {
         const query = e.target.value.trim();
         calculateAll();
+        
         clearTimeout(debounceTimer);
         
         if (query.length < 2) {
@@ -228,46 +241,78 @@ function addItem() {
         }
         
         dropdown.classList.remove('hidden');
-        dropdown.innerHTML = '<li class="ac-loading"><span class="spinner"></span> กำลังค้นหาข้อมูลสินค้า...</li>';
+        dropdown.innerHTML = '<li class="ac-loading">กำลังค้นหาจาก ihavecpu...</li>';
         
         debounceTimer = setTimeout(() => {
             searchIhavecpu(query, dropdown, nameInput, priceInput);
-        }, 600); // Improved responsiveness slightly from 800ms
+        }, 800); // 800ms debounce
     });
     
+    // Hide dropdown when clicking outside
     document.addEventListener('click', (e) => {
         if (!nameInput.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.classList.add('hidden');
         }
     });
     
+    // Event listeners
     row.querySelector('.btn-remove').addEventListener('click', () => {
         row.remove();
         calculateAll();
     });
     
     priceInput.addEventListener('input', calculateAll);
-    select.addEventListener('change', calculateAll);
+    row.querySelector('.item-category').addEventListener('change', calculateAll);
     
     itemsContainer.appendChild(row);
     calculateAll();
 }
 
-// Mock Database of Products
+// Mock Database of Products (simulating ihavecpu)
 const localProducts = [
-    { name: "CPU (ซีพียู) INTEL 1700 CORE I5-12400F 2.5GHz 6C 12T (TRAY) (3Y)", price: 4390, image: "https://ihavecpu.com/images/product/20230222045610-8547.jpg" },
-    { name: "CPU (ซีพียู) INTEL 1700 CORE I5-13400F 2.5GHz 10C 16T", price: 6290, image: "https://ihavecpu.com/images/product/20230104051056-1188.jpg" },
-    { name: "VGA (การ์ดจอ) ASUS DUAL GEFORCE RTX 4060 TI OC EDITION - 8GB GDDR6", price: 15990, image: "https://ihavecpu.com/images/product/20230524040947-8149.jpg" },
-    { name: "VGA (การ์ดจอ) GIGABYTE GEFORCE RTX 4070 SUPER WINDFORCE OC - 12GB GDDR6X", price: 25490, image: "https://ihavecpu.com/images/product/20240117064919-4704.jpg" },
-    { name: "MAINBOARD (เมนบอร์ด) 1700 ASUS PRIME H610M-K D4", price: 2490, image: "https://ihavecpu.com/images/product/20220106064030-5883.jpg" },
-    { name: "RAM (แรมพีซี) DDR4/3200 CORSAIR VENGEANCE LPX (16GBx2)", price: 2590, image: "https://ihavecpu.com/images/product/20210928014555-4654.jpg" },
-    { name: "SSD (เอสเอสดี) M.2 PCIE 4.0 WD BLACK SN850X 1TB", price: 3690, image: "https://ihavecpu.com/images/product/20220811050720-4355.jpg" }
+    {
+        name: "CPU (ซีพียู) INTEL 1700 CORE I5-12400F 2.5GHz 6C 12T (TRAY) (3Y)",
+        price: 4390,
+        image: "https://ihavecpu.com/images/product/20230222045610-8547.jpg" 
+    },
+    {
+        name: "CPU (ซีพียู) INTEL 1700 CORE I5-13400F 2.5GHz 10C 16T",
+        price: 6290,
+        image: "https://ihavecpu.com/images/product/20230104051056-1188.jpg"
+    },
+    {
+        name: "VGA (การ์ดจอ) ASUS DUAL GEFORCE RTX 4060 TI OC EDITION - 8GB GDDR6",
+        price: 15990,
+        image: "https://ihavecpu.com/images/product/20230524040947-8149.jpg"
+    },
+    {
+        name: "VGA (การ์ดจอ) GIGABYTE GEFORCE RTX 4070 SUPER WINDFORCE OC - 12GB GDDR6X",
+        price: 25490,
+        image: "https://ihavecpu.com/images/product/20240117064919-4704.jpg"
+    },
+    {
+        name: "MAINBOARD (เมนบอร์ด) 1700 ASUS PRIME H610M-K D4",
+        price: 2490,
+        image: "https://ihavecpu.com/images/product/20220106064030-5883.jpg"
+    },
+    {
+        name: "RAM (แรมพีซี) DDR4/3200 CORSAIR VENGEANCE LPX (16GBx2)",
+        price: 2590,
+        image: "https://ihavecpu.com/images/product/20210928014555-4654.jpg"
+    },
+    {
+        name: "SSD (เอสเอสดี) M.2 PCIE 4.0 WD BLACK SN850X 1TB",
+        price: 3690,
+        image: "https://ihavecpu.com/images/product/20220811050720-4355.jpg"
+    }
 ];
 
-// Enhanced Function to fetch and parse ihavecpu search results
+// Function to fetch and parse ihavecpu search results via proxy
 async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
     try {
         const q = query.toLowerCase();
+        
+        // We use corsproxy to attempt fetching real data
         const targetUrl = `https://ihavecpu.com/category?search=${encodeURIComponent(query)}`;
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
         
@@ -281,10 +326,14 @@ async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
             throw new Error('Cloudflare Blocked');
         }
         
+        // Parse HTML
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlString, 'text/html');
+        
         let products = [];
         
+        // Generic Scraping Heuristic for ihavecpu or similar sites
+        // Looking for anchor tags that might be products
         const links = Array.from(doc.querySelectorAll('a')).filter(a => {
             const text = a.textContent.toLowerCase();
             return text.includes(q) && text.length > 10 && text.length < 150;
@@ -296,6 +345,7 @@ async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
             const name = link.textContent.trim().replace(/\s+/g, ' ');
             if (seenNames.has(name) || name.length < 5) return;
             
+            // Try to find a product container by walking up the DOM
             let current = link;
             let priceText = '';
             let productCard = link;
@@ -304,100 +354,108 @@ async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
                 if (current.parentElement) {
                     current = current.parentElement;
                     const containerText = current.textContent;
+                    
+                    // Look for ฿ or numbers with commas
                     const priceMatch = containerText.match(/(?:฿|THB)\s*([\d,]+)/i) || containerText.match(/([\d,]{3,})\s*(?:.-|บาท)/);
                     if (priceMatch) {
                         priceText = priceMatch[1].replace(/,/g, '');
-                        productCard = current;
+                        productCard = current; // Save the highest parent that contains the price as the card
                         break;
                     }
                 }
             }
             
-            // --- FIXING PREVIEW IMAGE / LAZY LOADING LOGIC ---
-            let imgUrl = 'https://via.placeholder.com/40?text=No+Img';
+            // Look for image inside the productCard (or fallback to link itself)
+            let imgUrl = 'https://via.placeholder.com/40';
             const img = productCard.querySelector('img') || link.querySelector('img');
             
             if (img) {
-                // Check all known lazy-loading data attributes commonly used by modern CMS
-                const possibleSrc = img.getAttribute('data-src') || 
-                                    img.getAttribute('data-original') || 
-                                    img.getAttribute('lazy-src') || 
-                                    img.getAttribute('data-srcset') ||
-                                    img.getAttribute('src');
-                                    
+                // Handle lazy loading and relative URLs
+                const possibleSrc = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('src');
                 if (possibleSrc) {
-                    // Ignore tracking pixels, empty 1x1 gifs or blank base64 images
-                    const isBlank = possibleSrc.includes('blank.gif') || 
-                                    possibleSrc.includes('loading') || 
-                                    possibleSrc.startsWith('data:image/svg+xml') ||
-                                    possibleSrc.startsWith('data:image/gif');
-                                    
-                    if (!isBlank) {
-                        if (possibleSrc.startsWith('http')) {
-                            imgUrl = possibleSrc;
-                        } else if (possibleSrc.startsWith('//')) {
-                            imgUrl = 'https:' + possibleSrc;
-                        } else if (possibleSrc.startsWith('/')) {
-                            imgUrl = 'https://ihavecpu.com' + possibleSrc;
-                        } else {
-                            imgUrl = 'https://ihavecpu.com/' + possibleSrc;
-                        }
+                    if (possibleSrc.startsWith('http')) {
+                        imgUrl = possibleSrc;
+                    } else if (possibleSrc.startsWith('//')) {
+                        imgUrl = 'https:' + possibleSrc;
+                    } else if (possibleSrc.startsWith('/')) {
+                        imgUrl = 'https://ihavecpu.com' + possibleSrc;
+                    } else {
+                        imgUrl = 'https://ihavecpu.com/' + possibleSrc;
                     }
                 }
             }
             
             const priceVal = parseFloat(priceText);
             if (!isNaN(priceVal) && priceVal > 0) {
-                products.push({ name: name, price: priceVal, image: imgUrl });
+                products.push({
+                    name: name,
+                    price: priceVal,
+                    image: imgUrl
+                });
                 seenNames.add(name);
             }
         });
         
-        if (products.length === 0) throw new Error('No products found');
-        renderResults(products, q, dropdown, nameInput, priceInput, false);
+        if (products.length === 0) {
+            throw new Error('No products found or DOM structure blocked');
+        }
+        
+        renderResults(products, q, dropdown, nameInput, priceInput);
         
     } catch (error) {
-        console.warn('Live fetch failed, using local mock/smart fallback:', error.message);
+        console.warn('Live fetch failed, falling back to local mock:', error.message);
         
-        // Smart Local Mock Matching
+        // Fallback to local mock data if blocked
         const mockResults = localProducts.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
         if (mockResults.length > 0) {
-            renderResults(mockResults, query.toLowerCase(), dropdown, nameInput, priceInput, true);
+            renderResults(mockResults, query.toLowerCase(), dropdown, nameInput, priceInput);
         } else {
+            // Changed message to be more user friendly
             dropdown.innerHTML = `
                 <li class="ac-error">
-                    <strong>ไม่พบข้อมูลในสารบบออนไลน์</strong><br>
-                    <small>ปั๊มสามารถพิมพ์ชื่อและกรอกราคาต้นทุนเองได้ทันทีครับ</small>
+                    ไม่พบข้อมูลสินค้า <strong>"${query}"</strong><br>
+                    <small>กรุณาพิมพ์ให้ตรงกับชื่อสินค้า หรือกรอกราคาสินค้าด้วยตนเอง</small>
                 </li>`;
         }
     }
 }
 
-function renderResults(products, query, dropdown, nameInput, priceInput, isFallback) {
+function renderResults(products, query, dropdown, nameInput, priceInput) {
+    // Scoring and Sorting logic
+    // 1. Exact match / Starts with = highest score
+    // 2. Includes query closely = medium score
+    // 3. Alphabetical tie-breaker
     products.forEach(p => {
         const nameLower = p.name.toLowerCase();
         let score = 0;
+        
         if (nameLower === query) score += 100;
         else if (nameLower.startsWith(query)) score += 50;
         else if (nameLower.includes(query)) score += 10;
+        
+        // Bonus for length similarity (closer length = better match)
         const lengthDiff = Math.abs(nameLower.length - query.length);
         score -= (lengthDiff * 0.1); 
+        
         p.score = score;
     });
     
-    products.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'th'));
+    // Sort by score (desc), then alphabetically
+    products.sort((a, b) => {
+        if (b.score !== a.score) {
+            return b.score - a.score;
+        }
+        return a.name.localeCompare(b.name, 'th');
+    });
+    
+    // Take top 10 results max
     const results = products.slice(0, 10);
     
     let html = '';
-    // Show a subtle indicator banner if it's pulling from local cache due to a cloudflare block
-    if (isFallback) {
-        html += `<li class="ac-notice-banner">⚠️ โหมดออฟไลน์ (แสดงสินค้าแนะนำชั่วคราว)</li>`;
-    }
-    
     results.forEach((item) => {
         html += `
             <li class="autocomplete-item mock-item" data-price="${item.price}" data-name="${item.name}">
-                <img src="${item.image}" alt="preview" class="ac-image" onerror="this.onerror=null; this.src='https://via.placeholder.com/40?text=PC';">
+                <img src="${item.image}" alt="preview" class="ac-image" onerror="this.src='https://via.placeholder.com/40'">
                 <div class="ac-info">
                     <span class="ac-name">${item.name}</span>
                     <span class="ac-price">฿${item.price.toLocaleString('th-TH')}</span>
@@ -410,9 +468,13 @@ function renderResults(products, query, dropdown, nameInput, priceInput, isFallb
     
     dropdown.querySelectorAll('.mock-item').forEach(item => {
         item.addEventListener('click', () => {
-            nameInput.value = item.getAttribute('data-name');
-            priceInput.value = item.getAttribute('data-price');
+            const name = item.getAttribute('data-name');
+            const price = item.getAttribute('data-price');
+            
+            nameInput.value = name;
+            priceInput.value = price;
             dropdown.classList.add('hidden');
+            
             calculateAll();
         });
     });
@@ -422,8 +484,11 @@ function renderResults(products, query, dropdown, nameInput, priceInput, isFallb
 function calculateAll() {
     const platform = platformSelect.value;
     const baseFeePercent = baseFees[platform];
+    const platformName = platformSelect.options[platformSelect.selectedIndex].text.split(' ')[0];
+    
     const rows = itemsContainer.querySelectorAll('.item-row');
     let summaryText = '';
+    
     let totalAll = 0;
     let hasItems = false;
     
@@ -439,12 +504,18 @@ function calculateAll() {
             const feeStr = categoryData[platform][category];
             const { percent: catPercent, fixed: catFixed } = parseFeeString(feeStr);
             
+            // Logic change: If category is "COMPUTER SET", ignore baseFeePercent.
             const isComputerSet = category === "COMPUTER SET";
             const totalPercent = isComputerSet ? catPercent : (baseFeePercent + catPercent);
             
             const markupAmount = (priceInput * totalPercent) / 100;
+            // Round up to nearest integer (Math.ceil)
             finalPrice = Math.ceil(priceInput + markupAmount + catFixed);
             
+            // Format string:
+            // Item Name
+            // ฿[Price] + [TotalPercent]% [+ Fixed if > 0]
+            // = [FinalPrice].-
             const priceFormatted = `฿${priceInput.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             const percentStr = `${totalPercent.toFixed(2)}%`;
             const fixedStr = catFixed > 0 ? ` + ${catFixed}` : '';
@@ -465,6 +536,7 @@ function calculateAll() {
     if (!hasItems) {
         summaryText = `ไม่มีรายการสินค้า\n`;
     } else {
+        // Add total at the end
         summaryText += `Total = ${totalAll.toLocaleString('th-TH')} .-`;
     }
     
@@ -488,6 +560,7 @@ function showToast() {
     }, 2000);
 }
 
+// Event Listeners
 platformSelect.addEventListener('change', updateAllCategories);
 addItemBtn.addEventListener('click', addItem);
 
