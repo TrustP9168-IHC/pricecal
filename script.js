@@ -342,8 +342,8 @@ async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
         } else {
             dropdown.innerHTML = `
                 <li class="ac-error">
-                    <strong>ไม่พบข้อมูลในสารบบออนไลน์</strong><br>
-                    <small>ใส่ชื่อและกรอกราคาต้นทุนเองได้ทันที</small>
+                    <strong>ไม่พบข้อมูล</strong><br>
+                    <small>ใส่ชื่อสินค้าและราคาหน้าเว็บเองเลย</small>
                 </li>`;
         }
     }
