@@ -158,6 +158,42 @@ const categoryData = {
     }
 };
 
+// Inline SVG Placeholder for products that don't load their preview image
+// NOTE: This must be a string literal (not a variable reference) when used inside innerHTML onerror attributes
+const PLACEHOLDER_SVG_URI = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="%23888" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>');
+// Hardcoded data URI for use inside innerHTML (onerror cannot access JS variables)
+const IMG_ERROR_FALLBACK = "data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1.5'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpolyline points='21 15 16 10 5 21'/%3E%3C/svg%3E";
+
+// Generic category matching map to easily resolve platform specific categories
+const categoryMapping = {
+    CPU: ["CPU"],
+    MAINBOARD: ["MAINBOARD"],
+    GRAPHIC_CARD: ["GRAPHIC CARD"],
+    RAM: ["RAM"],
+    STORAGE: ["HARDDISK / SSD / M.2", "HARDDISK & SSD & M.2"],
+    LIQUID_COOLER: ["LIQUID COOLER"],
+    CPU_FAN: ["CPU FAN"],
+    CASE_FAN: ["CASE FAN"],
+    SILICONE: ["SILICONE"],
+    POWER_SUPPLY: ["POWER SUPPLY"],
+    UPS: ["UPS"],
+    VGA_HOLDER: ["VGA HOLDER"],
+    PCI_CABLE: ["PCI CABLE / EXTENDER RISER CABLE", "PCI CABLE / SLEEVED CABLE", "CABLE (LAN)"],
+    SLEEVED_CABLE: ["SLEEVED CABLE", "PCI CABLE / SLEEVED CABLE"],
+    NOTEBOOK: ["NOTEBOOK"],
+    MONITOR: ["MONITOR"],
+    KEYBOARD: ["KEYBOARD & NUMPAD", "KEYBOARD / NUMPAD", "KEYBOARD"],
+    KEYCAP_SWITCH: ["KEYCAP & SWITCH", "KEYCAP / SWITCH", "KEYCAP&SWITCH"],
+    MOUSE: ["MOUSE"],
+    MOUSE_PAD: ["MOUSE PAD"],
+    MOUSE_SKIN: ["MOUSE SKIN"],
+    HEADSET: ["HEADSET (IN EAR / FULL SIZE)", "HEADSET (FULL SIZE)", "HEADSET (IN EAR)", "HEADSET"],
+    MICROPHONE: ["MICROPHONE"],
+    SPEAKER: ["SPEAKER", "SPEAKER (PORTABLE):"],
+    WEBCAM: ["WEBCAM", "WEB CAM"],
+    COMPUTER_SET: ["COMPUTER SET"]
+};
+
 // DOM Elements
 const platformSelect = document.getElementById('platformSelect');
 const itemsContainer = document.getElementById('itemsContainer');
@@ -203,56 +239,70 @@ function updateAllCategories() {
     calculateAll();
 }
 
-// ฟังก์ชันวิเคราะห์ชื่อสินค้าเพื่อเลือกหมวดหมู่ให้อัตโนมัติ
+// Detect generic category from product name
+function getGenericCategoryKey(name) {
+    const lower = name.toLowerCase();
+    
+    // 1. Check for COMPUTER SET explicitly first
+    if (lower.includes('computer set') || lower.includes('คอมเซ็ต') || lower.includes('เครื่องประกอบ') || lower.includes('จัดสเปก') || lower.includes('comset')) return 'COMPUTER_SET';
+    
+    // 2. Comset detection heuristics (many slashes = full PC spec, or month-year prefix like JUN26)
+    if (name.split('/').length > 3 || /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\d{2}/i.test(name)) return 'COMPUTER_SET';
+    
+    // Ordered from specific to general keywords
+    if (lower.includes('mouse pad') || lower.includes('แผ่นรองเมาส์')) return 'MOUSE_PAD';
+    if (lower.includes('mouse skin')) return 'MOUSE_SKIN';
+    if (lower.includes('mouse') || lower.includes('เมาส์')) return 'MOUSE';
+    
+    if (lower.includes('keycap') || lower.includes('switch') || lower.includes('คีย์แคป') || lower.includes('สวิตช์')) return 'KEYCAP_SWITCH';
+    if (lower.includes('keyboard') || lower.includes('คีย์บอร์ด')) return 'KEYBOARD';
+    
+    if (lower.includes('headset') || lower.includes('headphone') || lower.includes('หูฟัง')) return 'HEADSET';
+    if (lower.includes('speaker') || lower.includes('ลำโพง')) return 'SPEAKER';
+    if (lower.includes('microphone') || lower.includes('ไมโครโฟน') || lower.includes('ไมค์')) return 'MICROPHONE';
+    if (lower.includes('webcam') || lower.includes('web cam') || lower.includes('กล้องเว็บแคม')) return 'WEBCAM';
+    
+    if (lower.includes('liquid cooler') || lower.includes('ชุดน้ำ')) return 'LIQUID_COOLER';
+    if (lower.includes('cpu fan') || lower.includes('ซิงค์พัดลม') || lower.includes('พัดลมซีพียู')) return 'CPU_FAN';
+    if (lower.includes('case fan') || lower.includes('พัดลมเคส')) return 'CASE_FAN';
+    if (lower.includes('silicone') || lower.includes('ซิลิโคน')) return 'SILICONE';
+    
+    if (lower.includes('extender riser') || lower.includes('pci cable') || lower.includes('สายพีซีไอ')) return 'PCI_CABLE';
+    if (lower.includes('sleeved cable') || lower.includes('สายถัก')) return 'SLEEVED_CABLE';
+    if (lower.includes('vga holder') || lower.includes('ค้ำการ์ดจอ')) return 'VGA_HOLDER';
+    
+    if (lower.includes('ups') || lower.includes('เครื่องสำรองไฟ')) return 'UPS';
+    if (lower.includes('power supply') || lower.includes('psu') || lower.includes('พาวเวอร์ซัพพลาย') || lower.includes('850w') || lower.includes('750w') || lower.includes('650w') || lower.includes('1000w')) return 'POWER_SUPPLY';
+    
+    if (lower.includes('mainboard') || lower.includes('เมนบอร์ด') || lower.includes('motherboard') || /b650|b760|h610|a620|z790|x670/i.test(lower)) return 'MAINBOARD';
+    if (lower.includes('cpu') || lower.includes('ซีพียู') || /core i\d|ryzen|intel/i.test(lower)) return 'CPU';
+    if (lower.includes('vga') || lower.includes('graphic card') || lower.includes('การ์ดจอ') || /rtx|rx \d{3,4}|radeon/i.test(lower)) return 'GRAPHIC_CARD';
+    if (lower.includes('ram') || lower.includes('แรม') || /ddr4|ddr5/i.test(lower)) return 'RAM';
+    if (lower.includes('ssd') || lower.includes('m.2') || lower.includes('nvme') || lower.includes('sata') || lower.includes('harddisk') || lower.includes('hdd') || lower.includes('เอสเอสดี')) return 'STORAGE';
+    
+    if (lower.includes('notebook') || lower.includes('โน้ตบุ๊ก') || lower.includes('โน๊ตบุ๊ค') || lower.includes('laptop')) return 'NOTEBOOK';
+    if (lower.includes('monitor') || lower.includes('จอคอม') || lower.includes('จอมอนิเตอร์') || lower.includes('display') || lower.includes('144hz') || lower.includes('165hz') || lower.includes('240hz')) return 'MONITOR';
+    if (lower.includes('computer set') || lower.includes('คอมเซ็ต') || lower.includes('เครื่องประกอบ') || lower.includes('จัดสเปก') || lower.includes('comset')) return 'COMPUTER_SET';
+    
+    return null;
+}
+
+// Auto select category dropdown based on product name
 function autoSelectCategory(productName, categorySelect) {
-    const name = productName.toUpperCase();
-    let matchedCategory = "";
-
-    if (name.includes("CORE I") || name.includes("RYZEN") || name.includes("AMD AM") || name.includes("ซีพียู") || name.includes("CPU")) {
-        matchedCategory = "CPU";
-    } else if (name.includes("MAINBOARD") || name.includes("เมนบอร์ด") || name.includes("B650") || name.includes("B760") || name.includes("H610") || name.includes("A620") || name.includes("Z790") || name.includes("X670")) {
-        matchedCategory = "MAINBOARD";
-    } else if (name.includes("VGA") || name.includes("GEFORCE") || name.includes("RTX") || name.includes("RX ") || name.includes("การ์ดจอ") || name.includes("RADEON")) {
-        matchedCategory = "GRAPHIC CARD";
-    } else if (name.includes("RAM") || name.includes("DDR4") || name.includes("DDR5") || name.includes("แรมพีซี") || name.includes("FURY")) {
-        matchedCategory = "RAM";
-    } else if (name.includes("SSD") || name.includes("M.2") || name.includes("NVME") || name.includes("SATA") || name.includes("HARDDISK") || name.includes("เอสเอสดี")) {
-        matchedCategory = "HARDDISK / SSD / M.2";
-        if (!Array.from(categorySelect.options).some(o => o.value === matchedCategory)) {
-            matchedCategory = "HARDDISK & SSD & M.2";
-        }
-    } else if (name.includes("LIQUID") || name.includes("ชุดน้ำ") || name.includes("LIQUID COOLER")) {
-        matchedCategory = "LIQUID COOLER";
-    } else if (name.includes("POWER SUPPLY") || name.includes("PSU") || name.includes("850W") || name.includes("750W") || name.includes("650W") || name.includes("1000W") || name.includes("A850GL")) {
-        matchedCategory = "POWER SUPPLY";
-    } else if (name.includes("MONITOR") || name.includes("จอคอม") || name.includes("HZ") || name.includes("DISPLAY")) {
-        matchedCategory = "MONITOR";
-    } else if (name.includes("NOTEBOOK") || name.includes("โน๊ตบุ๊ค") || name.includes("LAPTOP") || name.includes("VICTUS")) {
-        matchedCategory = "NOTEBOOK";
-    } else if (name.includes("KEYBOARD") || name.includes("คีย์บอร์ด")) {
-        matchedCategory = "KEYBOARD";
-        if (!Array.from(categorySelect.options).some(o => o.value === matchedCategory)) {
-            matchedCategory = "KEYBOARD & NUMPAD";
-        }
-    } else if (name.includes("MOUSE") || name.includes("เมาส์")) {
-        matchedCategory = "MOUSE";
-    } else if (name.includes("FREEZER") || name.includes("H5 FLOW") || name.includes("CASE")) {
-        matchedCategory = "COMPUTER SET"; 
-    }
-
-    if (!matchedCategory) {
-        for (let option of categorySelect.options) {
-            if (name.includes(option.value.toUpperCase())) {
-                matchedCategory = option.value;
-                break;
-            }
-        }
-    }
-
-    if (matchedCategory && Array.from(categorySelect.options).some(o => o.value === matchedCategory)) {
-        categorySelect.value = matchedCategory;
+    if (!productName || !categorySelect) return;
+    const key = getGenericCategoryKey(productName);
+    if (!key) return;
+    
+    const possibleValues = categoryMapping[key] || [];
+    const foundValue = possibleValues.find(val => 
+        Array.from(categorySelect.options).some(opt => opt.value === val)
+    );
+    
+    if (foundValue) {
+        categorySelect.value = foundValue;
     } else {
-        if (Array.from(categorySelect.options).some(o => o.value === "COMPUTER SET")) {
+        // Fallback to COMPUTER SET if nothing else fits
+        if (Array.from(categorySelect.options).some(opt => opt.value === "COMPUTER SET")) {
             categorySelect.value = "COMPUTER SET";
         }
     }
@@ -289,6 +339,14 @@ function addItem() {
             searchIhavecpu(query, dropdown, nameInput, priceInput);
         }, 600);
     });
+
+    // Auto-select category when user finishes typing or pastes name and moves away
+    nameInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            autoSelectCategory(nameInput.value, select);
+            calculateAll();
+        }, 200); // Small delay to allow dropdown item clicks to resolve first
+    });
     
     document.addEventListener('click', (e) => {
         if (!nameInput.contains(e.target) && !dropdown.contains(e.target)) {
@@ -308,22 +366,23 @@ function addItem() {
     calculateAll();
 }
 
-// Mock Database (ใช้เฉพาะเวลา Backend มีปัญหาเบื้องต้น)
+// Mock Database (Fallback when backend proxy is not running)
 const localProducts = [
-    { name: "CPU (ซีพียู) INTEL 1700 CORE I5-12400F 2.5GHz 6C 12T (TRAY) (3Y)", price: 4390, image: "https://ihavecpu.com/images/product/20230222045610-8547.jpg" },
-    { name: "CPU (ซีพียู) INTEL 1700 CORE I5-13400F 2.5GHz 10C 16T", price: 6290, image: "https://ihavecpu.com/images/product/20230104051056-1188.jpg" },
-    { name: "VGA (การ์ดจอ) ASUS DUAL GEFORCE RTX 4060 TI OC EDITION - 8GB GDDR6", price: 15990, image: "https://ihavecpu.com/images/product/20230524040947-8149.jpg" },
-    { name: "VGA (การ์ดจอ) GIGABYTE GEFORCE RTX 4070 SUPER WINDFORCE OC - 12GB GDDR6X", price: 25490, image: "https://ihavecpu.com/images/product/20240117064919-4704.jpg" },
-    { name: "MAINBOARD (เมนบอร์ด) 1700 ASUS PRIME H610M-K D4", price: 2490, image: "https://ihavecpu.com/images/product/20220106064030-5883.jpg" },
-    { name: "RAM (แรมพีซี) DDR4/3200 CORSAIR VENGEANCE LPX (16GBx2)", price: 2590, image: "https://ihavecpu.com/images/product/20210928014555-4654.jpg" },
-    { name: "SSD (เอสเอสดี) M.2 PCIE 4.0 WD BLACK SN850X 1TB", price: 3690, image: "https://ihavecpu.com/images/product/20220811050720-4355.jpg" }
+    { name: "CPU (ซีพียู) INTEL 1700 CORE I5-12400F 2.5GHz 6C 12T (TRAY) (3Y)", price: 4390, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
+    { name: "CPU (ซีพียู) INTEL 1700 CORE I5-13400F 2.5GHz 10C 16T", price: 6290, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
+    { name: "VGA (การ์ดจอ) ASUS DUAL GEFORCE RTX 4060 TI OC EDITION - 8GB GDDR6", price: 15990, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
+    { name: "VGA (การ์ดจอ) GIGABYTE GEFORCE RTX 4070 SUPER WINDFORCE OC - 12GB GDDR6X", price: 25490, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
+    { name: "MAINBOARD (เมนบอร์ด) 1700 ASUS PRIME H610M-K D4", price: 2490, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
+    { name: "RAM (แรมพีซี) DDR4/3200 CORSAIR VENGEANCE LPX (16GBx2)", price: 2590, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
+    { name: "SSD (เอสเอสดี) M.2 PCIE 4.0 WD BLACK SN850X 1TB", price: 3690, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" }
 ];
 
-// ดึงข้อมูลผ่าน Python Backend Proxy
+// Fetch data through local proxy backend
 async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
     try {
         const q = query.toLowerCase();
-        const targetUrl = `http://127.0.0.1:5000/api/search?query=${encodeURIComponent(query)}`;
+        // Pointing to the new nocpu backend endpoint which serves the fast cached Excel data
+        const targetUrl = `http://127.0.0.1:5000/api/nocpu/search?query=${encodeURIComponent(query)}`;
         
         const response = await fetch(targetUrl);
         if (!response.ok) throw new Error('Backend Server Error');
@@ -334,7 +393,7 @@ async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
         renderResults(products, q, dropdown, nameInput, priceInput, false);
         
     } catch (error) {
-        console.warn('Backend fetch failed, using smart local match:', error.message);
+        console.warn('Proxy backend fetch failed, falling back to local database:', error.message);
         
         const mockResults = localProducts.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
         if (mockResults.length > 0) {
@@ -342,13 +401,14 @@ async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
         } else {
             dropdown.innerHTML = `
                 <li class="ac-error">
-                    <strong>ไม่พบข้อมูล</strong><br>
-                    <small>ใส่ชื่อสินค้าและราคาหน้าเว็บเองเลย</small>
+                    <strong>ไม่พบข้อมูลสินค้า</strong><br>
+                    <small>ท่านสามารถพิมพ์ชื่อและกรอกราคาต้นทุนได้เองโดยตรง</small>
                 </li>`;
         }
     }
 }
 
+// Render search preview items in dropdown
 function renderResults(products, query, dropdown, nameInput, priceInput, isFallback) {
     products.forEach(p => {
         const nameLower = p.name.toLowerCase();
@@ -366,13 +426,24 @@ function renderResults(products, query, dropdown, nameInput, priceInput, isFallb
     
     let html = '';
     if (isFallback) {
-        html += `<li class="ac-notice-banner">⚠️ โหมดสำรอง (แสดงรายการแนะนำเบื้องต้น)</li>`;
+        html += `<li class="ac-notice-banner">⚠️ แสดงรายการแนะนำด่วน (ออฟไลน์)</li>`;
     }
     
     results.forEach((item) => {
+        // Use a hardcoded data URI string in onerror because innerHTML strings cannot reference JS scope variables
+        // referrerpolicy="no-referrer" prevents AWS S3 / Cloudflare hotlink protection from rejecting image loads
+        const imgSrc = item.image || IMG_ERROR_FALLBACK;
         html += `
-            <li class="autocomplete-item mock-item" data-price="${item.price}" data-name="${item.name}">
-                <img src="${item.image}" alt="preview" class="ac-image" onerror="this.onerror=null; this.src='https://via.placeholder.com/40?text=PC';">
+            <li class="autocomplete-item mock-item" data-price="${item.price}" data-name="${item.name.replace(/"/g, '&quot;')}" title="${item.name.replace(/"/g, '&quot;')} - ฿${item.price.toLocaleString('th-TH')}">
+                <img
+                    src="${imgSrc}"
+                    alt="preview"
+                    class="ac-image"
+                    referrerpolicy="no-referrer"
+                    crossorigin="anonymous"
+                    loading="lazy"
+                    onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23888\' stroke-width=\'1.5\'%3E%3Crect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\'/%3E%3Ccircle cx=\'8.5\' cy=\'8.5\' r=\'1.5\'/%3E%3Cpolyline points=\'21 15 16 10 5 21\'/%3E%3C/svg%3E';this.style.padding='8px';this.style.background='%23222';"
+                >
                 <div class="ac-info">
                     <span class="ac-name">${item.name}</span>
                     <span class="ac-price">฿${item.price.toLocaleString('th-TH')}</span>
