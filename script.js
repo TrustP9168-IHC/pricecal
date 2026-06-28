@@ -244,10 +244,10 @@ function getGenericCategoryKey(name) {
     const lower = name.toLowerCase();
     
     // 1. Check for COMPUTER SET explicitly first
-    if (lower.includes('computer set') || lower.includes('คอมเซ็ต') || lower.includes('เครื่องประกอบ') || lower.includes('จัดสเปก') || lower.includes('comset')) return 'COMPUTER_SET';
+    if (lower.includes('computer set') || lower.includes('คอมเซ็ต') || lower.includes('คอมเซต') || lower.includes('คอมประกอบ') || lower.includes('ชุดประกอบ') || lower.includes('เครื่องประกอบ') || lower.includes('จัดสเปก') || lower.includes('comset')) return 'COMPUTER_SET';
     
     // 2. Comset detection heuristics (many slashes = full PC spec, or month-year prefix like JUN26)
-    if (name.split('/').length > 3 || /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\d{2}/i.test(name)) return 'COMPUTER_SET';
+    if (name.split('/').length >= 3 || /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\d{2}\b/i.test(name)) return 'COMPUTER_SET';
     
     // Ordered from specific to general keywords
     if (lower.includes('mouse pad') || lower.includes('แผ่นรองเมาส์')) return 'MOUSE_PAD';

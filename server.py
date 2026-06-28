@@ -178,27 +178,32 @@ def nocpu_search():
     if not NOCPU_CACHE:
         return jsonify({"error": "Failed to fetch data from nocpu-behind.info"}), 500
 
-    # Split query into words to support multiple keyword matches like "7500F 5060 32GB"
-    words = query.split()
+    # Replace hyphens with spaces in query to make searching easier (e.g. JUN26-D4 -> jun26 d4)
+    query_clean = query.replace("-", " ")
+    words = query_clean.split()
     
     def is_comset(name, sku):
         name_lower = name.lower()
-        if any(k in name_lower for k in ["computer set", "คอมเซ็ต", "comset"]): return True
-        if name.count('/') > 3: return True
-        prefix = r'^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\d{2}'
-        if re.match(prefix, name, re.IGNORECASE) or re.match(prefix, sku, re.IGNORECASE): return True
+        if any(k in name_lower for k in ["computer set", "คอมเซ็ต", "คอมเซต", "คอมประกอบ", "ชุดประกอบ", "comset"]): return True
+        if name.count('/') >= 2: return True
+        prefix = r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\d{2}\b'
+        if re.search(prefix, name, re.IGNORECASE) or re.search(prefix, sku, re.IGNORECASE): return True
         return False
     
     # Fast in-memory filtering: match items containing ALL words
     filtered = []
     for p in NOCPU_CACHE:
-        if all(word in p["search_str"] for word in words):
+        # Also clean the search string to make matching more forgiving
+        p_search_clean = p["search_str"].replace("-", " ")
+        if all(word in p_search_clean for word in words):
             # If the user typed only 1 word, exclude comsets UNLESS they explicitly searched for the comset series/SKU
             if len(words) == 1:
                 word = words[0]
                 if is_comset(p["name"], p["sku"]):
-                    # Allow only if the query matches the SKU or the starting code of the comset name
-                    if not (word in p["sku"].lower() or p["name"].lower().startswith(word)):
+                    # Allow only if the query exactly matches the SKU or is a month-year prefix
+                    if word == p["sku"].lower() or re.match(r'^[a-z]{3}\d{2}$', word):
+                        pass
+                    else:
                         continue
             
             filtered.append(p)
