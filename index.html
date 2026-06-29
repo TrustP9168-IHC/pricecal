@@ -28,10 +28,23 @@
                 </div>
             </section>
 
-            <!-- Section 2: Items Details -->
+            <!-- Section 2: DIY Link -->
+            <section class="card section-diy">
+                <h2>2. โหลดจัดสเปกคอม (DIY Link)</h2>
+                <div class="input-group diy-group" style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label for="diyUrl">ลิงก์ iHAVECPU DIY (เช่น ihavecpu.com/diy/share/...)</label>
+                        <input type="text" id="diyUrl" placeholder="วางลิงก์ที่นี่...">
+                    </div>
+                    <button id="fetchDiyBtn" class="btn btn-primary" style="white-space: nowrap;">ดึงราคา</button>
+                </div>
+                <div id="diyResult" style="margin-top: 10px; font-size: 0.9em; color: #555;"></div>
+            </section>
+
+            <!-- Section 3: Items Details -->
             <section class="card section-items">
                 <div class="section-header">
-                    <h2>2. รายละเอียดสินค้า</h2>
+                    <h2>3. รายละเอียดสินค้า</h2>
                     <button id="addItemBtn" class="btn btn-primary">+ เพิ่มสินค้า</button>
                 </div>
                 <div id="itemsContainer">
@@ -39,9 +52,9 @@
                 </div>
             </section>
 
-            <!-- Section 3: Summary -->
+            <!-- Section 4: Summary -->
             <section class="card section-summary">
-                <h2>3. สรุปผล (คลิกเพื่อ Copy)</h2>
+                <h2>4. สรุปผล (คลิกเพื่อ Copy)</h2>
                 <div class="summary-box" id="summaryBox">
                     <div id="summaryContent" class="summary-content">
                         <!-- Summary text goes here -->

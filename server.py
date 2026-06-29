@@ -5,6 +5,8 @@ import io
 import time
 import requests
 import openpyxl
+import csv
+import json
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request as flask_request, jsonify
 from flask_cors import CORS
@@ -262,6 +264,63 @@ def health():
         "cache_size": len(NOCPU_CACHE),
         "image_cache_size": len(IMAGE_CACHE)
     })
+
+FEES_CACHE = None
+FEES_CACHE_TIME = 0
+
+@app.route("/api/fees", methods=["GET"])
+def get_fees():
+    global FEES_CACHE, FEES_CACHE_TIME
+    if FEES_CACHE and time.time() - FEES_CACHE_TIME < CACHE_TTL:
+        return jsonify(FEES_CACHE)
+        
+    try:
+        csv_url = 'https://docs.google.com/spreadsheets/d/1OpvDt53URkSmkhG36-2KNvE-EB_FGm37yOrDXHJjgO8/export?format=csv&gid=0'
+        r = requests.get(csv_url, timeout=10)
+        reader = csv.reader(io.StringIO(r.text))
+        data = {'shopee': {}, 'lazada': {}, 'tiktok': {}}
+        for i, row in enumerate(reader):
+            if i < 2: continue
+            if len(row) < 9: continue
+            
+            s_cat = row[1].strip()
+            if s_cat and s_cat not in ['Category', 'SHOPEE'] and not s_cat.startswith('Update'):
+                data['shopee'][s_cat] = row[2].strip()
+                
+            l_cat = row[4].strip()
+            if l_cat and l_cat not in ['Category', 'LAZADA'] and not l_cat.startswith('Update'):
+                data['lazada'][l_cat] = row[5].strip()
+                
+            t_cat = row[7].strip()
+            if t_cat and t_cat not in ['Category', 'TIKTOK'] and not t_cat.startswith('Update'):
+                data['tiktok'][t_cat] = row[8].strip()
+                
+        FEES_CACHE = data
+        FEES_CACHE_TIME = time.time()
+        return jsonify(data)
+    except Exception as e:
+        print(f"Error fetching fees: {e}")
+        if FEES_CACHE: return jsonify(FEES_CACHE)
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/diy/price", methods=["GET"])
+def get_diy_price():
+    url = flask_request.args.get("url")
+    if not url or "ihavecpu.com/diy/share" not in url:
+        return jsonify({"error": "Invalid DIY URL"}), 400
+        
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers, timeout=10)
+        m = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', r.text)
+        if m:
+            data = json.loads(m.group(1))
+            net_price = data.get("props", {}).get("pageProps", {}).get("detailDIY", {}).get("netPrice")
+            if net_price is not None:
+                return jsonify({"price": net_price})
+        return jsonify({"error": "Price not found in HTML"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ==========================================================
 if __name__ == "__main__":

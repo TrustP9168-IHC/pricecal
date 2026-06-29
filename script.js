@@ -5,157 +5,11 @@ const baseFees = {
     tiktok: 3.21
 };
 
-// Raw category data from CSV
-const categoryData = {
-    "shopee": {
-        "COMPUTER SET": "15.10%",
-        "CPU": "14.03%",
-        "MAINBOARD": "14.03%",
-        "GRAPHIC CARD": "14.03%",
-        "RAM": "14.03%",
-        "HARDDISK / SSD / M.2": "14.57%",
-        "EXTERNAL HDD/ FLASH DRIVE": "14.57%",
-        "M.2 ENCLOSURE": "14.57%",
-        "LIQUID COOLER": "14.03%",
-        "CPU FAN": "14.03%",
-        "CASE FAN": "14.03%",
-        "SILICONE": "14.03%",
-        "POWER SUPPLY": "14.03%",
-        "UPS": "14.03%",
-        "VGA HOLDER": "14.03%",
-        "PCI CABLE / EXTENDER RISER CABLE": "14.03%",
-        "SLEEVED CABLE": "14.03%",
-        "SOUND CARD": "14.03%",
-        "NOTEBOOK": "10.82%",
-        "ALL IN ONE": "10.82%",
-        "MONITOR": "14.57%",
-        "TABLET": "18.31%",
-        "CONSOLE GAME": "18.31%",
-        "SMART WATCH": "22.06%",
-        "SPEAKER": "24.20%",
-        "WEBCAM": "22.06%",
-        "IP CAMERA": "24.73%",
-        "STREAM DECK": "24.20%",
-        "CAPTURE CARD": "24.20%",
-        "ADAPTER / CONVERTER": "24.73%",
-        "USB HUB": "24.20%",
-        "LAN CABLE": "18.85%",
-        "AUDIO & VIDEO CABLE": "24.73%",
-        "MONITOR ARM": "24.20%",
-        "NETWORK (ROUTER /WIFI)": "18.85%",
-        "EXTENSION SOCKET": "24.20%",
-        "SOFTWARE": "24.73%",
-        "COOLING PAD": "24.20%",
-        "KEYBOARD & NUMPAD": "21.52%",
-        "KEYCAP & SWITCH": "21.52%",
-        "MOUSE": "21.52%",
-        "MOUSE PAD": "24.20%",
-        "MOUSE SKIN": "21.52%",
-        "COMBO SET": "21.52%",
-        "HEADSET (IN EAR / FULL SIZE)": "24.20%",
-        "HEADSET STAND": "24.73%",
-        "MICROPHONE": "24.73%",
-        "GAME CONTROLLER & JOYSTICK": "24.20%",
-        "GAMING CHAIR & GAMING DESK": "24.73%",
-        "CLOTHES": "25.80%",
-        "FILM": "24.73%"
-    },
-    "lazada": {
-        "COMPUTER SET": "14.98%",
-        "CPU": "14.98%",
-        "MAINBOARD": "14.98%",
-        "GRAPHIC CARD": "14.98%",
-        "RAM": "14.98%",
-        "HARDDISK / SSD / M.2": "14.98%",
-        "EXTERNAL HDD/ FLASH DRIVE": "17.12%",
-        "M.2 ENCLOSURE": "17.12%",
-        "LIQUID COOLER": "20.87%",
-        "CPU FAN": "20.87%",
-        "CASE FAN": "20.87%",
-        "SILICONE": "20.87%",
-        "POWER SUPPLY": "14.98%",
-        "UPS": "21.40%",
-        "VGA HOLDER": "14.98%",
-        "PCI CABLE / SLEEVED CABLE": "21.40%",
-        "SOUND CARD": "14.98%",
-        "NOTEBOOK": "14.98%",
-        "ALL IN ONE": "14.98%",
-        "MONITOR": "14.98%",
-        "TABLET": "14.98%",
-        "HANDHELD GAMING": "14.98%",
-        "SMART WATCH": "19.26%",
-        "KEYBOARD / NUMPAD": "21.40%",
-        "KEYCAP / SWITCH": "21.40%",
-        "MOUSE": "21.40%",
-        "MOUSE PAD": "21.40%",
-        "MOUSE SKIN": "21.40%",
-        "COMBO SET": "21.40%",
-        "HEADSET (FULL SIZE)": "21.40%",
-        "HEADSET (IN EAR)": "21.40%",
-        "HEADSET STAND": "21.94%",
-        "MICROPHONE": "21.94%",
-        "GAME CONTROLLER / JOYSTICK": "21.40%",
-        "GAMING CHAIR & GAMING DESK": "21.94%",
-        "CLOTHES": "23.01%",
-        "FILM": "21.94%",
-        "SPEAKER": "21.40%",
-        "SPEAKER (PORTABLE):": "21.40%",
-        "WEBCAM": "21.40%",
-        "STREAM DECK": "21.94%",
-        "CAPTURE CARD": "21.94%",
-        "USB HUB": "21.94%",
-        "ADAPTER / CONVERTER": "17.12%",
-        "CABLE (LAN)": "21.40%",
-        "CABLE (AUDIO/CHARGER)": "21.94%",
-        "MONITOR CABLE": "17.13%",
-        "MONITOR ARM": "21.40%",
-        "NETWORK (ROUTER /WIFI)": "21.40%",
-        "EXTENSION SOCKET": "21.40%",
-        "SOFTWARE": "21.94%"
-    },
-    "tiktok": {
-        "COMPUTER SET": "12.84% + 199",
-        "CPU": "16.59%",
-        "MAINBOARD": "16.59%",
-        "GRAPHIC CARD": "16.59%",
-        "RAM": "16.59%",
-        "HARDDISK & SSD & M.2": "16.59%",
-        "M.2 ENCLOSURE": "16.59%",
-        "LIQUID COOLER": "16.59%",
-        "CPU FAN": "16.59%",
-        "CASE FAN": "16.59%",
-        "POWER SUPPLY": "16.59%",
-        "UPS": "16.59%",
-        "VGA HOLDER": "16.59%",
-        "NOTEBOOK": "9.63% + 199",
-        "MONITOR": "16.59%",
-        "CONSOLE GAME": "9.63% + 199",
-        "ALL IN ONE": "9.63% + 199",
-        "TABLET": "12.84% + 199",
-        "SMART WATCH": "11.77% + 199",
-        "KEYBOARD": "18.73%",
-        "KEYCAP&SWITCH": "18.73%",
-        "MOUSE": "18.73%",
-        "MOUSE PAD": "18.73%",
-        "COMBO SET": "18.73%",
-        "HEADSET": "18.73%",
-        "MICROPHONE": "18.73%",
-        "GAME CONTROLLER": "16.59%",
-        "BOOK": "19.80%",
-        "CLOTHES": "20.87%",
-        "FILM": "18.73%",
-        "SPEAKER": "18.73%",
-        "NETWORK (ROUTER, USB WIFI)": "18.73%",
-        "LAN CABLE": "18.73%",
-        "AUDIO & VIDEO CABLE": "18.73%",
-        "STEAM DECK": "18.73%",
-        "ADAPTER / CONVERTER": "18.73%",
-        "USB HUB": "18.73%",
-        "WEB CAM": "18.73%",
-        "MONITOR ARM": "18.73%",
-        "SOFTWARE": "18.73%",
-        "EXTENSION SOCKET": "19.80%"
-    }
+// Dynamic category data from CSV
+let categoryData = {
+    "shopee": {},
+    "lazada": {},
+    "tiktok": {}
 };
 
 // Hardcoded data URI for use inside innerHTML (onerror cannot access JS variables)
@@ -452,6 +306,47 @@ function renderResults(products, query, dropdown, nameInput, priceInput, isFallb
     });
 }
 
+let diyItem = null; // { name: string, price: number }
+
+document.getElementById('fetchDiyBtn').addEventListener('click', async () => {
+    const urlInput = document.getElementById('diyUrl').value.trim();
+    const resultDiv = document.getElementById('diyResult');
+    if (!urlInput) {
+        resultDiv.innerHTML = '<span style="color:red;">กรุณาใส่ลิงก์</span>';
+        return;
+    }
+    
+    resultDiv.innerHTML = 'กำลังดึงข้อมูล...';
+    try {
+        const response = await fetch(`http://127.0.0.1:5000/api/diy/price?url=${encodeURIComponent(urlInput)}`);
+        const data = await response.json();
+        
+        if (response.ok && data.price) {
+            diyItem = {
+                name: urlInput.replace(/^https?:\/\/(www\.)?/, ''), // simplify url
+                price: parseFloat(data.price)
+            };
+            resultDiv.innerHTML = `<span style="color:green; font-weight: 500;">ดึงราคาสำเร็จ: ฿${diyItem.price.toLocaleString('th-TH')}</span> <button id="removeDiyBtn" class="btn" style="padding: 2px 8px; font-size: 0.8em; margin-left: 10px; background: #ffebee; color: #d32f2f; border-radius: 4px;">ลบ</button>`;
+            
+            document.getElementById('removeDiyBtn').addEventListener('click', () => {
+                diyItem = null;
+                document.getElementById('diyUrl').value = '';
+                resultDiv.innerHTML = '';
+                calculateAll();
+            });
+            calculateAll();
+        } else {
+            resultDiv.innerHTML = `<span style="color:red;">ไม่สามารถดึงราคาได้: ${data.error || 'Unknown error'}</span>`;
+            diyItem = null;
+            calculateAll();
+        }
+    } catch (e) {
+        resultDiv.innerHTML = `<span style="color:red;">ข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์</span>`;
+        diyItem = null;
+        calculateAll();
+    }
+});
+
 // Calculate prices and update summary
 function calculateAll() {
     const platform = platformSelect.value;
@@ -461,6 +356,24 @@ function calculateAll() {
     let totalAll = 0;
     let hasItems = false;
     
+    // Process DIY Item first
+    if (diyItem) {
+        hasItems = true;
+        const feeStr = categoryData[platform]["COMPUTER SET"] || "0%";
+        const { percent: catPercent, fixed: catFixed } = parseFeeString(feeStr);
+        
+        const markupAmount = (diyItem.price * catPercent) / 100;
+        const finalPrice = Math.ceil(diyItem.price + markupAmount + catFixed);
+        
+        const priceFormatted = `฿${diyItem.price.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        const percentStr = `${catPercent.toFixed(2)}%`;
+        const fixedStr = catFixed > 0 ? ` + ${catFixed}` : '';
+        
+        summaryText += `${diyItem.name}\n${priceFormatted} + ${percentStr}${fixedStr}\n= ${finalPrice.toLocaleString('th-TH')} .-\n\n`;
+        totalAll += finalPrice;
+    }
+    
+    // Process standard items
     rows.forEach(row => {
         const nameInput = row.querySelector('.item-name').value || 'สินค้าไม่มีชื่อ';
         const priceInput = parseFloat(row.querySelector('.item-price').value) || 0;
@@ -470,7 +383,7 @@ function calculateAll() {
         let finalPrice = 0;
         if (priceInput > 0 && category) {
             hasItems = true;
-            const feeStr = categoryData[platform][category];
+            const feeStr = categoryData[platform][category] || "0%";
             const { percent: catPercent, fixed: catFixed } = parseFeeString(feeStr);
             
             const isComputerSet = category === "COMPUTER SET";
@@ -525,5 +438,22 @@ function showToast() {
 platformSelect.addEventListener('change', updateAllCategories);
 addItemBtn.addEventListener('click', addItem);
 
-// Initialize with one item
+async function loadCategoryData() {
+    try {
+        const response = await fetch('http://127.0.0.1:5000/api/fees');
+        if (response.ok) {
+            const data = await response.json();
+            // Assign fetched data if it has shopee, lazada, tiktok keys
+            if (data.shopee && data.lazada && data.tiktok) {
+                categoryData = data;
+                updateAllCategories();
+            }
+        }
+    } catch (e) {
+        console.error("Failed to load dynamic fees:", e);
+    }
+}
+
+// Initialize with one item and fetch remote fee data
 addItem();
+loadCategoryData();
