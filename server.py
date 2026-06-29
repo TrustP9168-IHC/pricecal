@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 import re
 import sys
 import io
@@ -22,7 +21,6 @@ CORS(app)
 NOCPU_BASE_URL   = "https://nocpu-behind.info"
 NOCPU_USERNAME   = "Trust.p"
 NOCPU_PASSWORD   = "trustp9168"
-IHAVECPU_BASE    = "https://www.ihavecpu.com"
 # ==========================================================
 
 # ==========================================================
@@ -124,24 +122,44 @@ class NocpuSession:
         if not sku or sku in IMAGE_CACHE:
             return IMAGE_CACHE.get(sku, "")
             
-        if not self.logged_in: return ""
+        if not self.logged_in:
+            if not self.login(): return ""
+            
         import urllib.parse
-        xsrf = urllib.parse.unquote(self.session.cookies.get("XSRF-TOKEN", ""))
-        headers = {
-            "X-XSRF-TOKEN": xsrf,
-            "X-CSRF-TOKEN": self.csrf_token,
-            "USER-GROUP": self.group_id,
-            "Referer": f"{NOCPU_BASE_URL}/product/index",
-            "X-Requested-With": "XMLHttpRequest"
-        }
+        
+        def get_headers():
+            xsrf = urllib.parse.unquote(self.session.cookies.get("XSRF-TOKEN", ""))
+            return {
+                "X-XSRF-TOKEN": xsrf,
+                "X-CSRF-TOKEN": self.csrf_token,
+                "USER-GROUP": self.group_id,
+                "Referer": f"{NOCPU_BASE_URL}/product/index",
+                "X-Requested-With": "XMLHttpRequest"
+            }
+            
         try:
             r = self.session.post(
                 f"{NOCPU_BASE_URL}/product/get", 
-                headers=headers, 
+                headers=get_headers(), 
                 data={"search": sku, "product_active_status": "show", "limit": 1, "offset": 0}, 
                 timeout=5
             )
-            if r.status_code == 200:
+            
+            # If the response is HTML (redirect to login) or unauthorized, try relogging once
+            if r.status_code != 200 or "text/html" in r.headers.get("Content-Type", ""):
+                print(f"[NOCPU] Session expired during image fetch for {sku}. Relogging...")
+                self.logged_in = False
+                if self.login():
+                    r = self.session.post(
+                        f"{NOCPU_BASE_URL}/product/get", 
+                        headers=get_headers(), 
+                        data={"search": sku, "product_active_status": "show", "limit": 1, "offset": 0}, 
+                        timeout=5
+                    )
+                else:
+                    return "" # Don't cache empty if login fails
+            
+            if r.status_code == 200 and "application/json" in r.headers.get("Content-Type", ""):
                 rows = r.json().get("rows", [])
                 if rows:
                     img_tag = str(rows[0].get("img") or "")
@@ -150,9 +168,14 @@ class NocpuSession:
                         img_url = m.group(1)
                         IMAGE_CACHE[sku] = img_url
                         return img_url
-        except:
-            pass
-        IMAGE_CACHE[sku] = ""
+                
+                # If valid JSON but no image found, cache as empty so we don't spam requests
+                IMAGE_CACHE[sku] = ""
+                return ""
+        except Exception as e:
+            print(f"[NOCPU] Failed to fetch image for {sku}: {e}")
+            
+        # Do not cache empty string on network errors, so it will retry next time
         return ""
 
 
@@ -248,4 +271,4 @@ if __name__ == "__main__":
     nocpu.login()
     NOCPU_CACHE = nocpu.load_excel_cache()
     NOCPU_CACHE_TIME = time.time()
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=False)

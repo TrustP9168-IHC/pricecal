@@ -158,9 +158,6 @@ const categoryData = {
     }
 };
 
-// Inline SVG Placeholder for products that don't load their preview image
-// NOTE: This must be a string literal (not a variable reference) when used inside innerHTML onerror attributes
-const PLACEHOLDER_SVG_URI = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="%23888" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>');
 // Hardcoded data URI for use inside innerHTML (onerror cannot access JS variables)
 const IMG_ERROR_FALLBACK = "data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1.5'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpolyline points='21 15 16 10 5 21'/%3E%3C/svg%3E";
 
@@ -366,17 +363,6 @@ function addItem() {
     calculateAll();
 }
 
-// Mock Database (Fallback when backend proxy is not running)
-const localProducts = [
-    { name: "CPU (ซีพียู) INTEL 1700 CORE I5-12400F 2.5GHz 6C 12T (TRAY) (3Y)", price: 4390, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
-    { name: "CPU (ซีพียู) INTEL 1700 CORE I5-13400F 2.5GHz 10C 16T", price: 6290, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
-    { name: "VGA (การ์ดจอ) ASUS DUAL GEFORCE RTX 4060 TI OC EDITION - 8GB GDDR6", price: 15990, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
-    { name: "VGA (การ์ดจอ) GIGABYTE GEFORCE RTX 4070 SUPER WINDFORCE OC - 12GB GDDR6X", price: 25490, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
-    { name: "MAINBOARD (เมนบอร์ด) 1700 ASUS PRIME H610M-K D4", price: 2490, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
-    { name: "RAM (แรมพีซี) DDR4/3200 CORSAIR VENGEANCE LPX (16GBx2)", price: 2590, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" },
-    { name: "SSD (เอสเอสดี) M.2 PCIE 4.0 WD BLACK SN850X 1TB", price: 3690, image: "https://ihcupload.s3.ap-southeast-1.amazonaws.com/img/product/products149504_800.jpg" }
-];
-
 // Fetch data through local proxy backend
 async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
     try {
@@ -393,18 +379,12 @@ async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
         renderResults(products, q, dropdown, nameInput, priceInput, false);
         
     } catch (error) {
-        console.warn('Proxy backend fetch failed, falling back to local database:', error.message);
-        
-        const mockResults = localProducts.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
-        if (mockResults.length > 0) {
-            renderResults(mockResults, query.toLowerCase(), dropdown, nameInput, priceInput, true);
-        } else {
-            dropdown.innerHTML = `
-                <li class="ac-error">
-                    <strong>ไม่พบข้อมูลสินค้า</strong><br>
-                    <small>ท่านสามารถพิมพ์ชื่อและกรอกราคาต้นทุนได้เองโดยตรง</small>
-                </li>`;
-        }
+        console.warn('Proxy backend fetch failed:', error.message);
+        dropdown.innerHTML = `
+            <li class="ac-error">
+                <strong>ไม่พบข้อมูลสินค้า</strong><br>
+                <small>กรุณาตรวจสอบว่าเปิดโปรแกรม Server ไว้หรือไม่</small>
+            </li>`;
     }
 }
 
