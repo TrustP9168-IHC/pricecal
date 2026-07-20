@@ -7,6 +7,7 @@ import requests
 import openpyxl
 import csv
 import json
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request as flask_request, jsonify
 from flask_cors import CORS
@@ -21,12 +22,6 @@ CORS(app)
 #  CONFIG
 # ==========================================================
 NOCPU_BASE_URL   = "https://nocpu-behind.info"
-NOCPU_USERNAME   = "Trust.p"
-NOCPU_PASSWORD   = "trustp9168"
-# ==========================================================
-
-# ==========================================================
-#  nocpu-behind.info -- Session Manager & Cache
 # ==========================================================
 
 NOCPU_CACHE = []
@@ -34,8 +29,12 @@ NOCPU_CACHE_TIME = 0
 CACHE_TTL = 3600
 IMAGE_CACHE = {}  # SKU -> Image URL
 
+SESSIONS = {} # token -> NocpuSession instance
+
 class NocpuSession:
-    def __init__(self):
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
         self.session = requests.Session()
         self.logged_in = False
         self.csrf_token = ""
@@ -47,7 +46,7 @@ class NocpuSession:
 
     def login(self) -> bool:
         try:
-            print(f"[NOCPU] Logging in as '{NOCPU_USERNAME}'...")
+            print(f"[NOCPU] Logging in as '{self.username}'...")
             import urllib.parse
             
             self.session.get(f"{NOCPU_BASE_URL}/")
@@ -55,7 +54,7 @@ class NocpuSession:
             
             resp = self.session.post(
                 f"{NOCPU_BASE_URL}/checkSignin",
-                data={"username": NOCPU_USERNAME, "password": NOCPU_PASSWORD},
+                data={"username": self.username, "password": self.password},
                 headers={"X-Requested-With": "XMLHttpRequest", "X-XSRF-TOKEN": xsrf},
                 timeout=10,
             )
@@ -80,7 +79,7 @@ class NocpuSession:
         if not self.logged_in:
             if not self.login(): return []
             
-        print("[NOCPU] Downloading Excel export for fast searching...")
+        print(f"[NOCPU] Downloading Excel export using {self.username}...")
         url = f"{NOCPU_BASE_URL}/product/exportProduct?product_active_status=show"
         resp = self.session.get(url, timeout=30)
         
@@ -147,7 +146,6 @@ class NocpuSession:
                 timeout=5
             )
             
-            # If the response is HTML (redirect to login) or unauthorized, try relogging once
             if r.status_code != 200 or "text/html" in r.headers.get("Content-Type", ""):
                 print(f"[NOCPU] Session expired during image fetch for {sku}. Relogging...")
                 self.logged_in = False
@@ -159,7 +157,7 @@ class NocpuSession:
                         timeout=5
                     )
                 else:
-                    return "" # Don't cache empty if login fails
+                    return ""
             
             if r.status_code == 200 and "application/json" in r.headers.get("Content-Type", ""):
                 rows = r.json().get("rows", [])
@@ -171,39 +169,60 @@ class NocpuSession:
                         IMAGE_CACHE[sku] = img_url
                         return img_url
                 
-                # If valid JSON but no image found, cache as empty so we don't spam requests
                 IMAGE_CACHE[sku] = ""
                 return ""
         except Exception as e:
             print(f"[NOCPU] Failed to fetch image for {sku}: {e}")
             
-        # Do not cache empty string on network errors, so it will retry next time
         return ""
 
-
-nocpu = NocpuSession()
-
+def get_session():
+    auth_header = flask_request.headers.get('Authorization', '')
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        return SESSIONS.get(token)
+    return None
 
 # ==========================================================
 #  Flask routes
 # ==========================================================
 
+@app.route("/api/login", methods=["POST"])
+def login_route():
+    data = flask_request.get_json() or {}
+    username = data.get("username")
+    password = data.get("password")
+    
+    if not username or not password:
+        return jsonify({"error": "Missing credentials"}), 400
+        
+    session_obj = NocpuSession(username, password)
+    if session_obj.login():
+        token = str(uuid.uuid4())
+        SESSIONS[token] = session_obj
+        return jsonify({"token": token, "message": "Login successful"})
+    else:
+        return jsonify({"error": "Invalid credentials or login failed"}), 401
+
 @app.route("/api/nocpu/search", methods=["GET"])
 def nocpu_search():
     global NOCPU_CACHE, NOCPU_CACHE_TIME
+    
+    user_session = get_session()
+    if not user_session:
+        return jsonify({"error": "Unauthorized"}), 401
     
     query = flask_request.args.get("query", "").strip().lower()
     if not query:
         return jsonify([])
 
     if not NOCPU_CACHE or time.time() - NOCPU_CACHE_TIME > CACHE_TTL:
-        NOCPU_CACHE = nocpu.load_excel_cache()
+        NOCPU_CACHE = user_session.load_excel_cache()
         NOCPU_CACHE_TIME = time.time()
         
     if not NOCPU_CACHE:
         return jsonify({"error": "Failed to fetch data from nocpu-behind.info"}), 500
 
-    # Replace hyphens with spaces in query to make searching easier (e.g. JUN26-D4 -> jun26 d4)
     query_clean = query.replace("-", " ")
     words = query_clean.split()
     
@@ -215,36 +234,27 @@ def nocpu_search():
         if re.search(prefix, name, re.IGNORECASE) or re.search(prefix, sku, re.IGNORECASE): return True
         return False
     
-    # Fast in-memory filtering: match items containing ALL words
     filtered = []
     for p in NOCPU_CACHE:
-        # Also clean the search string to make matching more forgiving
         p_search_clean = p["search_str"].replace("-", " ")
         if all(word in p_search_clean for word in words):
-            # If the user typed only 1 word, exclude comsets UNLESS they explicitly searched for the comset series/SKU
             if len(words) == 1:
                 word = words[0]
                 if is_comset(p["name"], p["sku"]):
-                    # Allow only if the query exactly matches the SKU or is a month-year prefix
                     if word == p["sku"].lower() or re.match(r'^[a-z]{3}\d{2}$', word):
                         pass
                     else:
                         continue
-            
             filtered.append(p)
             
-    # Take top 10 items
     top_items = filtered[:10]
     
-    # Fetch images in parallel for the top 10 items if not cached
     if top_items:
         skus_to_fetch = [p["sku"] for p in top_items if p["sku"] not in IMAGE_CACHE]
         if skus_to_fetch:
             with ThreadPoolExecutor(max_workers=10) as executor:
-                # We map to list to force execution
-                list(executor.map(nocpu.fetch_image_for_sku, skus_to_fetch))
+                list(executor.map(user_session.fetch_image_for_sku, skus_to_fetch))
 
-    # Build final response
     results = []
     for p in top_items:
         results.append({
@@ -255,12 +265,11 @@ def nocpu_search():
 
     return jsonify(results)
 
-
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({
         "status": "ok",
-        "nocpu_logged_in": nocpu.logged_in,
+        "active_sessions": len(SESSIONS),
         "cache_size": len(NOCPU_CACHE),
         "image_cache_size": len(IMAGE_CACHE)
     })
@@ -271,7 +280,7 @@ FEES_CACHE_TIME = 0
 @app.route("/api/fees", methods=["GET"])
 def get_fees():
     global FEES_CACHE, FEES_CACHE_TIME
-    if FEES_CACHE and time.time() - FEES_CACHE_TIME < CACHE_TTL:
+    if FEES_CACHE and time.time() - FEES_CACHE_TIME < 86400: # 24 hours
         return jsonify(FEES_CACHE)
         
     try:
@@ -327,7 +336,6 @@ if __name__ == "__main__":
     print("=" * 60)
     print("  Price Calculator Proxy -> http://127.0.0.1:5000")
     print("=" * 60)
-    nocpu.login()
-    NOCPU_CACHE = nocpu.load_excel_cache()
-    NOCPU_CACHE_TIME = time.time()
+    # Cache Excel file on startup is removed since it requires a user session. 
+    # It will be lazy-loaded when the first user searches.
     app.run(host="127.0.0.1", port=5000, debug=False)

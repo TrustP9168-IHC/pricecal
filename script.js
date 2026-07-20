@@ -1,7 +1,9 @@
+const API_BASE_URL = "http://127.0.0.1:5000"; // เปลี่ยนเป็นลิงก์เซิร์ฟเวอร์จริงที่นี่
+
 // Platform base fees
 const baseFees = {
     shopee: 7.49,
-    lazada: 1.07,
+    lazada: 7.7,
     tiktok: 3.21
 };
 
@@ -15,7 +17,6 @@ let categoryData = {
 // Hardcoded data URI for use inside innerHTML (onerror cannot access JS variables)
 const IMG_ERROR_FALLBACK = "data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1.5'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpolyline points='21 15 16 10 5 21'/%3E%3C/svg%3E";
 
-// Generic category matching map to easily resolve platform specific categories
 const categoryMapping = {
     CPU: ["CPU"],
     MAINBOARD: ["MAINBOARD"],
@@ -54,6 +55,72 @@ const summaryBox = document.getElementById('summaryBox');
 const summaryContent = document.getElementById('summaryContent');
 const toast = document.getElementById('toast');
 
+// Authentication System
+let authToken = localStorage.getItem('nocpu_token');
+
+function checkAuthAndInit() {
+    if (authToken) {
+        document.getElementById('loginModal').classList.add('hidden');
+        loadCategoryData();
+        // Clear items container to avoid duplicate first row if relogged in
+        itemsContainer.innerHTML = '';
+        addItem();
+    } else {
+        document.getElementById('loginModal').classList.remove('hidden');
+    }
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    const errorDiv = document.getElementById('loginError');
+    const loginBtn = document.getElementById('loginBtn');
+    
+    if (!username || !password) {
+        errorDiv.textContent = 'กรุณากรอก Username และ Password';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'กำลังเชื่อมต่อ...';
+    errorDiv.style.display = 'none';
+    
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        
+        const data = await res.json();
+        if (res.ok && data.token) {
+            authToken = data.token;
+            localStorage.setItem('nocpu_token', authToken);
+            checkAuthAndInit();
+        } else {
+            errorDiv.textContent = data.error || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+            errorDiv.style.display = 'block';
+        }
+    } catch (err) {
+        errorDiv.textContent = 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้';
+        errorDiv.style.display = 'block';
+    } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'เข้าสู่ระบบ';
+    }
+});
+
+function handleAuthError() {
+    authToken = null;
+    localStorage.removeItem('nocpu_token');
+    checkAuthAndInit();
+}
+
+function getAuthHeaders() {
+    return { 'Authorization': `Bearer ${authToken}` };
+}
+
 // Parse percentage string
 function parseFeeString(str) {
     let percent = 0;
@@ -65,7 +132,6 @@ function parseFeeString(str) {
     return { percent, fixed };
 }
 
-// Generate category options HTML
 function getCategoryOptions(platform) {
     const categories = categoryData[platform] || {};
     let options = '';
@@ -75,7 +141,6 @@ function getCategoryOptions(platform) {
     return options;
 }
 
-// Update all dropdowns when platform changes
 function updateAllCategories() {
     const platform = platformSelect.value;
     const optionsHTML = getCategoryOptions(platform);
@@ -90,17 +155,12 @@ function updateAllCategories() {
     calculateAll();
 }
 
-// Detect generic category from product name
 function getGenericCategoryKey(name) {
     const lower = name.toLowerCase();
     
-    // 1. Check for COMPUTER SET explicitly first
     if (lower.includes('computer set') || lower.includes('คอมเซ็ต') || lower.includes('คอมเซต') || lower.includes('คอมประกอบ') || lower.includes('ชุดประกอบ') || lower.includes('เครื่องประกอบ') || lower.includes('จัดสเปก') || lower.includes('comset')) return 'COMPUTER_SET';
-    
-    // 2. Comset detection heuristics (many slashes = full PC spec, or month-year prefix like JUN26)
     if (name.split('/').length >= 3 || /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\d{2}\b/i.test(name)) return 'COMPUTER_SET';
     
-    // Ordered from specific to general keywords
     if (lower.includes('mouse pad') || lower.includes('แผ่นรองเมาส์')) return 'MOUSE_PAD';
     if (lower.includes('mouse skin')) return 'MOUSE_SKIN';
     if (lower.includes('mouse') || lower.includes('เมาส์')) return 'MOUSE';
@@ -138,7 +198,6 @@ function getGenericCategoryKey(name) {
     return null;
 }
 
-// Auto select category dropdown based on product name
 function autoSelectCategory(productName, categorySelect) {
     if (!productName || !categorySelect) return;
     const key = getGenericCategoryKey(productName);
@@ -152,14 +211,12 @@ function autoSelectCategory(productName, categorySelect) {
     if (foundValue) {
         categorySelect.value = foundValue;
     } else {
-        // Fallback to COMPUTER SET if nothing else fits
         if (Array.from(categorySelect.options).some(opt => opt.value === "COMPUTER SET")) {
             categorySelect.value = "COMPUTER SET";
         }
     }
 }
 
-// Add new item row
 function addItem() {
     const clone = itemRowTemplate.content.cloneNode(true);
     const row = clone.querySelector('.item-row');
@@ -191,12 +248,11 @@ function addItem() {
         }, 600);
     });
 
-    // Auto-select category when user finishes typing or pastes name and moves away
     nameInput.addEventListener('blur', () => {
         setTimeout(() => {
             autoSelectCategory(nameInput.value, select);
             calculateAll();
-        }, 200); // Small delay to allow dropdown item clicks to resolve first
+        }, 200);
     });
     
     document.addEventListener('click', (e) => {
@@ -217,14 +273,18 @@ function addItem() {
     calculateAll();
 }
 
-// Fetch data through local proxy backend
 async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
+    if (!authToken) return;
     try {
         const q = query.toLowerCase();
-        // Pointing to the new nocpu backend endpoint which serves the fast cached Excel data
-        const targetUrl = `http://127.0.0.1:5000/api/nocpu/search?query=${encodeURIComponent(query)}`;
+        const targetUrl = `${API_BASE_URL}/api/nocpu/search?query=${encodeURIComponent(query)}`;
         
-        const response = await fetch(targetUrl);
+        const response = await fetch(targetUrl, { headers: getAuthHeaders() });
+        
+        if (response.status === 401) {
+            handleAuthError();
+            return;
+        }
         if (!response.ok) throw new Error('Backend Server Error');
         
         const products = await response.json();
@@ -237,12 +297,11 @@ async function searchIhavecpu(query, dropdown, nameInput, priceInput) {
         dropdown.innerHTML = `
             <li class="ac-error">
                 <strong>ไม่พบข้อมูลสินค้า</strong><br>
-                <small>กรุณาตรวจสอบว่าเปิดโปรแกรม Server ไว้หรือไม่</small>
+                <small>เกิดข้อผิดพลาดในการโหลดข้อมูล</small>
             </li>`;
     }
 }
 
-// Render search preview items in dropdown
 function renderResults(products, query, dropdown, nameInput, priceInput, isFallback) {
     products.forEach(p => {
         const nameLower = p.name.toLowerCase();
@@ -264,8 +323,6 @@ function renderResults(products, query, dropdown, nameInput, priceInput, isFallb
     }
     
     results.forEach((item) => {
-        // Use a hardcoded data URI string in onerror because innerHTML strings cannot reference JS scope variables
-        // referrerpolicy="no-referrer" prevents AWS S3 / Cloudflare hotlink protection from rejecting image loads
         const imgSrc = item.image || IMG_ERROR_FALLBACK;
         html += `
             <li class="autocomplete-item mock-item" data-price="${item.price}" data-name="${item.name.replace(/"/g, '&quot;')}" title="${item.name.replace(/"/g, '&quot;')} - ฿${item.price.toLocaleString('th-TH')}">
@@ -306,7 +363,7 @@ function renderResults(products, query, dropdown, nameInput, priceInput, isFallb
     });
 }
 
-let diyItem = null; // { name: string, price: number }
+let diyItem = null;
 
 document.getElementById('fetchDiyBtn').addEventListener('click', async () => {
     const urlInput = document.getElementById('diyUrl').value.trim();
@@ -318,12 +375,12 @@ document.getElementById('fetchDiyBtn').addEventListener('click', async () => {
     
     resultDiv.innerHTML = 'กำลังดึงข้อมูล...';
     try {
-        const response = await fetch(`http://127.0.0.1:5000/api/diy/price?url=${encodeURIComponent(urlInput)}`);
+        const response = await fetch(`${API_BASE_URL}/api/diy/price?url=${encodeURIComponent(urlInput)}`);
         const data = await response.json();
         
         if (response.ok && data.price) {
             diyItem = {
-                name: urlInput.replace(/^https?:\/\/(www\.)?/, ''), // simplify url
+                name: urlInput.replace(/^https?:\/\/(www\.)?/, ''),
                 price: parseFloat(data.price)
             };
             resultDiv.innerHTML = `<span style="color:green; font-weight: 500;">ดึงราคาสำเร็จ: ฿${diyItem.price.toLocaleString('th-TH')}</span> <button id="removeDiyBtn" class="btn" style="padding: 2px 8px; font-size: 0.8em; margin-left: 10px; background: #ffebee; color: #d32f2f; border-radius: 4px;">ลบ</button>`;
@@ -347,7 +404,6 @@ document.getElementById('fetchDiyBtn').addEventListener('click', async () => {
     }
 });
 
-// Calculate prices and update summary
 function calculateAll() {
     const platform = platformSelect.value;
     const baseFeePercent = baseFees[platform];
@@ -356,7 +412,6 @@ function calculateAll() {
     let totalAll = 0;
     let hasItems = false;
     
-    // Process DIY Item first
     if (diyItem) {
         hasItems = true;
         const feeStr = categoryData[platform]["COMPUTER SET"] || "0%";
@@ -373,7 +428,6 @@ function calculateAll() {
         totalAll += finalPrice;
     }
     
-    // Process standard items
     rows.forEach(row => {
         const nameInput = row.querySelector('.item-name').value || 'สินค้าไม่มีชื่อ';
         const priceInput = parseFloat(row.querySelector('.item-price').value) || 0;
@@ -418,7 +472,6 @@ function calculateAll() {
     summaryContent.textContent = summaryText;
 }
 
-// Copy to clipboard
 summaryBox.addEventListener('click', async () => {
     try {
         await navigator.clipboard.writeText(summaryContent.textContent);
@@ -440,10 +493,9 @@ addItemBtn.addEventListener('click', addItem);
 
 async function loadCategoryData() {
     try {
-        const response = await fetch('http://127.0.0.1:5000/api/fees');
+        const response = await fetch(`${API_BASE_URL}/api/fees`);
         if (response.ok) {
             const data = await response.json();
-            // Assign fetched data if it has shopee, lazada, tiktok keys
             if (data.shopee && data.lazada && data.tiktok) {
                 categoryData = data;
                 updateAllCategories();
@@ -454,6 +506,5 @@ async function loadCategoryData() {
     }
 }
 
-// Initialize with one item and fetch remote fee data
-addItem();
-loadCategoryData();
+// Check auth token before starting
+checkAuthAndInit();

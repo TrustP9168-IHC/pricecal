@@ -22,7 +22,7 @@
                     <label for="platformSelect">แพลตฟอร์ม</label>
                     <select id="platformSelect">
                         <option value="shopee">Shopee (Base +7.49%)</option>
-                        <option value="lazada">Lazada (Base +1.07%)</option>
+                        <option value="lazada">Lazada (Base +7.7%)</option>
                         <option value="tiktok">Tiktok (Base +3.21%)</option>
                     </select>
                 </div>
@@ -99,6 +99,24 @@
     </template>
 
     <div id="toast" class="toast">คัดลอกข้อความแล้ว!</div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal-overlay hidden">
+        <div class="modal-content card">
+            <h2>เข้าสู่ระบบ (nocpu-behind.info)</h2>
+            <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">กรุณากรอกข้อมูลเพื่อใช้เชื่อมต่อกับระบบหลังบ้าน</p>
+            <div class="input-group">
+                <label for="loginUsername">Username</label>
+                <input type="text" id="loginUsername" placeholder="Username">
+            </div>
+            <div class="input-group" style="margin-top: 10px;">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Password">
+            </div>
+            <div id="loginError" style="color: red; font-size: 0.85em; margin-top: 10px; display: none;"></div>
+            <button id="loginBtn" class="btn btn-primary" style="margin-top: 20px; width: 100%;">เข้าสู่ระบบ</button>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
